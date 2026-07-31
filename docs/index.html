@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="doc_title">Conector AWS EC2 — Ruvic</title>
+  <link rel="stylesheet" href="assets/ruvic.css">
+</head>
+<body>
+  <main class="ruvic-container">
+    <nav class="ruvic-toc" aria-label="Índice">
+      <h2 data-i18n="toc_title">Contenido</h2>
+      <ol>
+        <li><a href="#que-es" data-i18n="toc.que_es">¿Qué es y para qué sirve?</a></li>
+        <li><a href="#prerrequisitos" data-i18n="toc.prerrequisitos">Prerrequisitos</a></li>
+        <li><a href="#configuracion-fabricante" data-i18n="toc.configuracion_fabricante">Configuración en el fabricante</a></li>
+        <li><a href="#permisos" data-i18n="toc.permisos">Permisos requeridos</a></li>
+        <li><a href="#configuracion-ruvic" data-i18n="toc.configuracion_ruvic">Configuración en Ruvic</a></li>
+        <li><a href="#verificacion" data-i18n="toc.verificacion">Verificación</a></li>
+        <li><a href="#solucion-problemas" data-i18n="toc.solucion_problemas">Solución de problemas</a></li>
+        <li><a href="#faq-seguridad" data-i18n="toc.faq_seguridad">Preguntas frecuentes y notas de seguridad</a></li>
+      </ol>
+    </nav>
+
+    <h1 data-i18n="guide_title">Conector AWS EC2</h1>
+    <p class="guide-updated">{{ULTIMA_ACTUALIZACION}}</p>
+
+    <section>
+      <h2 id="que-es" data-i18n="section.que_es">¿Qué es y para qué sirve?</h2>
+      <p data-i18n="section.que_es.body">Este conector permite al agente de Ruvic consultar y controlar instancias de Amazon EC2: listar instancias, iniciar o detener una instancia, y consultar su estado actual.</p>
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="section.que_es.write_title">Este conector modifica infraestructura real</span>
+        <span data-i18n="section.que_es.write_body">start_instance y stop_instance cambian el estado real de una instancia. Úsalo con cuidado sobre instancias productivas.</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.operacion">Operación</th>
+            <th data-i18n="table.que_hace">Qué hace</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ec2.list_instances</code></td>
+            <td data-i18n="op.list_instances">Lista las instancias de la región configurada</td>
+          </tr>
+          <tr>
+            <td><code>ec2.start_instance</code></td>
+            <td data-i18n="op.start_instance">Inicia una instancia detenida</td>
+          </tr>
+          <tr>
+            <td><code>ec2.stop_instance</code></td>
+            <td data-i18n="op.stop_instance">Detiene una instancia en ejecución</td>
+          </tr>
+          <tr>
+            <td><code>ec2.get_instance_state</code></td>
+            <td data-i18n="op.get_instance_state">Consulta el estado actual de una instancia</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 id="prerrequisitos" data-i18n="section.prerrequisitos">Prerrequisitos</h2>
+      <ul>
+        <li data-i18n="prereq.1">Al menos una <strong>instancia EC2</strong> ya creada en tu cuenta de AWS.</li>
+        <li data-i18n="prereq.2">Acceso a la <strong>consola de AWS IAM</strong> para crear un usuario dedicado.</li>
+        <li data-i18n="prereq.3">La región de AWS donde viven las instancias a administrar.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 id="configuracion-fabricante" data-i18n="section.configuracion_fabricante">Configuración en el fabricante</h2>
+      <div data-i18n="fabricante.intro">
+        <p>Vas a crear un <strong>usuario IAM dedicado</strong> para Ruvic. Se recomienda restringir el control (start/stop) por tag, para que el agente solo pueda actuar sobre instancias explícitamente marcadas.</p>
+      </div>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="step.1.label">Crea un usuario IAM dedicado.</strong>
+          <p data-i18n="step.1.body">En IAM → Usuarios → Crear usuario. Solo acceso programático, sin acceso a la consola.</p>
+        </li>
+        <li>
+          <strong data-i18n="step.2.label">Marcá las instancias que el conector podrá controlar.</strong>
+          <p data-i18n="step.2.body">Agregá el tag <code>RuvicManaged=true</code> a las instancias donde querés permitir start/stop desde Ruvic.</p>
+        </li>
+        <li>
+          <strong data-i18n="step.3.label">Crea una policy con el mínimo privilegio necesario.</strong>
+          <p data-i18n="step.3.body">Adjuntá una policy en línea que restrinja el control por ese tag:</p>
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:StartInstances",
+        "ec2:StopInstances"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/RuvicManaged": "true" }
+      }
+    }
+  ]
+}</code></pre>
+        </li>
+        <li>
+          <strong data-i18n="step.4.label">Genera las claves de acceso.</strong>
+          <p data-i18n="step.4.body">En "Credenciales de seguridad" del usuario, creá un Access Key. Guardá el Access Key ID y el Secret Access Key — el secreto solo se muestra una vez.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 id="permisos" data-i18n="section.permisos">Permisos requeridos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.permiso">Permiso</th>
+            <th data-i18n="table.para_que">Para qué sirve</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ec2:DescribeInstances</code></td>
+            <td data-i18n="perm.describe_instances">Listar instancias (<code>list_instances</code>, test de conexión)</td>
+          </tr>
+          <tr>
+            <td><code>ec2:DescribeInstanceStatus</code></td>
+            <td data-i18n="perm.describe_status">Consultar estado (<code>get_instance_state</code>)</td>
+          </tr>
+          <tr>
+            <td><code>ec2:StartInstances</code></td>
+            <td data-i18n="perm.start">Iniciar una instancia (<code>start_instance</code>)</td>
+          </tr>
+          <tr>
+            <td><code>ec2:StopInstances</code></td>
+            <td data-i18n="perm.stop">Detener una instancia (<code>stop_instance</code>)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info">
+        <span class="callout-title" data-i18n="perm.note_title">Nota</span>
+        <span data-i18n="perm.note_body">No se otorgan permisos de administración (ec2:RunInstances, ec2:TerminateInstances, cambios de red o grupos de seguridad).</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 id="configuracion-ruvic" data-i18n="section.configuracion_ruvic">Configuración en Ruvic</h2>
+      <div data-i18n="ruvic.intro">
+        <p>Entrá a <strong>Settings → Conectores</strong>, buscá la tarjeta <strong>AWS EC2</strong> y pulsá <strong>Configurar</strong>.</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.campo">Campo del formulario</th>
+            <th data-i18n="table.valor">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="field.access_key_id">Access Key ID</td>
+            <td data-i18n="field.access_key_id.value">El Access Key ID generado en el paso anterior</td>
+          </tr>
+          <tr>
+            <td data-i18n="field.secret_access_key">Secret Access Key</td>
+            <td data-i18n="field.secret_access_key.value">El Secret Access Key generado (se guarda cifrado)</td>
+          </tr>
+          <tr>
+            <td data-i18n="field.region">Región de AWS</td>
+            <td data-i18n="field.region.value">La región donde viven las instancias (ej. us-east-1)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="ruvic-button" data-i18n="ruvic.test_button">Probar conexión</span> <span data-i18n="ruvic.test_note"> — la plataforma listará instancias de la región configurada para confirmar credenciales y acceso.</span></p>
+    </section>
+
+    <section>
+      <h2 id="verificacion" data-i18n="section.verificacion">Verificación</h2>
+      <ol class="ruvic-steps">
+        <li>
+          <strong data-i18n="verif.1.label">Test de conexión exitoso.</strong>
+          <p data-i18n="verif.1.body">El botón "Probar conexión" debe responder con éxito listando instancias de la región.</p>
+        </li>
+        <li>
+          <strong data-i18n="verif.2.label">Prueba mínima con el agente.</strong>
+          <p data-i18n="verif.2.body">Abrí una conversación nueva y pedile:</p>
+          <blockquote data-i18n="verif.2.quote">"Listame las instancias EC2 y su estado."</blockquote>
+          <p data-i18n="verif.2.result">El agente debe devolver el listado real de instancias con su estado (running/stopped).</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 id="solucion-problemas" data-i18n="section.solucion_problemas">Solución de problemas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="table.mensaje">Mensaje / síntoma</th>
+            <th data-i18n="table.causa">Causa probable y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-i18n="trouble.1.msg">"Credenciales inválidas o sin permiso IAM suficiente"</td>
+            <td data-i18n="trouble.1.fix">Access Key inválida/rotada, o la policy no incluye el permiso ni el tag necesario para la operación.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.2.msg">"La instancia no existe o no es accesible"</td>
+            <td data-i18n="trouble.2.fix">ID de instancia mal escrito, o la instancia está en otra región distinta a la configurada.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.3.msg">"La instancia no está en un estado válido para esta operación"</td>
+            <td data-i18n="trouble.3.fix">Intentaste iniciar una instancia ya en ejecución, o detener una ya detenida. Consultá el estado primero con get_instance_state.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.4.msg">"No se pudo conectar al servicio" (timeout)</td>
+            <td data-i18n="trouble.4.fix">Región de AWS incorrecta, o problema de red temporal. Reintentá.</td>
+          </tr>
+          <tr>
+            <td data-i18n="trouble.5.msg">El conector aparece "Sin configurar" tras guardar</td>
+            <td data-i18n="trouble.5.fix">Algún campo obligatorio quedó vacío. Completá Access Key ID, Secret Access Key y Región.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 id="faq-seguridad" data-i18n="section.faq_seguridad">Preguntas frecuentes y notas de seguridad</h2>
+
+      <h3 data-i18n="faq.1.q">¿El agente puede iniciar o detener cualquier instancia de mi cuenta?</h3>
+      <div data-i18n="faq.1.a"><p>Solo si la policy IAM lo permite. Se recomienda restringir start/stop a instancias con un tag específico (ej. RuvicManaged=true), así el agente nunca puede tocar instancias no marcadas explícitamente.</p></div>
+
+      <h3 data-i18n="faq.2.q">¿Dónde queda guardado el Secret Access Key?</h3>
+      <div data-i18n="faq.2.a"><p>Como secreto en el almacén de credenciales de la plataforma. La interfaz nunca vuelve a mostrarlo; solo indica "definido".</p></div>
+
+      <h3 data-i18n="faq.3.q">Rotación de credenciales</h3>
+      <div data-i18n="faq.3.a"><p>Recomendado cada 90 días: generá un Access Key nuevo en IAM, actualizalo en el formulario del conector, y desactivá el anterior una vez confirmado que el nuevo funciona.</p></div>
+
+      <h3 data-i18n="faq.4.q">¿Qué hago si las claves se comprometen?</h3>
+      <div data-i18n="faq.4.a"><ol><li>Desactivá el Access Key inmediatamente en IAM.</li><li>Revisá la actividad reciente en AWS CloudTrail (buscá acciones StartInstances/StopInstances inesperadas).</li><li>Generá un Access Key nuevo y actualizalo en el formulario.</li></ol></div>
+
+      <div class="callout callout-warning">
+        <span class="callout-title" data-i18n="faq.warning_title">Buenas prácticas</span>
+        <span data-i18n="faq.warning_body">Restringí start/stop por tag, nunca uses un usuario con permisos sobre toda la cuenta; y recordá que detener una instancia productiva puede causar una interrupción de servicio real.</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const I18N = {
+      es: {
+        doc_title: "Conector AWS EC2 — Ruvic",
+        toc_title: "Contenido",
+        "toc.que_es": "¿Qué es y para qué sirve?",
+        "toc.prerrequisitos": "Prerrequisitos",
+        "toc.configuracion_fabricante": "Configuración en el fabricante",
+        "toc.permisos": "Permisos requeridos",
+        "toc.configuracion_ruvic": "Configuración en Ruvic",
+        "toc.verificacion": "Verificación",
+        "toc.solucion_problemas": "Solución de problemas",
+        "toc.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        guide_title: "Conector AWS EC2",
+        "section.que_es": "¿Qué es y para qué sirve?",
+        "section.que_es.body": "Este conector permite al agente de Ruvic consultar y controlar instancias de Amazon EC2: listar instancias, iniciar o detener una instancia, y consultar su estado actual.",
+        "section.que_es.write_title": "Este conector modifica infraestructura real",
+        "section.que_es.write_body": "start_instance y stop_instance cambian el estado real de una instancia. Úsalo con cuidado sobre instancias productivas.",
+        "table.operacion": "Operación",
+        "table.que_hace": "Qué hace",
+        "op.list_instances": "Lista las instancias de la región configurada",
+        "op.start_instance": "Inicia una instancia detenida",
+        "op.stop_instance": "Detiene una instancia en ejecución",
+        "op.get_instance_state": "Consulta el estado actual de una instancia",
+        "section.prerrequisitos": "Prerrequisitos",
+        "prereq.1": "Al menos una <strong>instancia EC2</strong> ya creada en tu cuenta de AWS.",
+        "prereq.2": "Acceso a la <strong>consola de AWS IAM</strong> para crear un usuario dedicado.",
+        "prereq.3": "La región de AWS donde viven las instancias a administrar.",
+        "section.configuracion_fabricante": "Configuración en el fabricante",
+        "fabricante.intro": "Vas a crear un <strong>usuario IAM dedicado</strong> para Ruvic. Se recomienda restringir el control (start/stop) por tag, para que el agente solo pueda actuar sobre instancias explícitamente marcadas.",
+        "step.1.label": "Crea un usuario IAM dedicado.",
+        "step.1.body": "En IAM → Usuarios → Crear usuario. Solo acceso programático, sin acceso a la consola.",
+        "step.2.label": "Marcá las instancias que el conector podrá controlar.",
+        "step.2.body": "Agregá el tag RuvicManaged=true a las instancias donde querés permitir start/stop desde Ruvic.",
+        "step.3.label": "Crea una policy con el mínimo privilegio necesario.",
+        "step.3.body": "Adjuntá una policy en línea que restrinja el control por ese tag:",
+        "step.4.label": "Genera las claves de acceso.",
+        "step.4.body": "En \"Credenciales de seguridad\" del usuario, creá un Access Key. Guardá el Access Key ID y el Secret Access Key — el secreto solo se muestra una vez.",
+        "section.permisos": "Permisos requeridos",
+        "table.permiso": "Permiso",
+        "table.para_que": "Para qué sirve",
+        "perm.describe_instances": "Listar instancias (list_instances, test de conexión)",
+        "perm.describe_status": "Consultar estado (get_instance_state)",
+        "perm.start": "Iniciar una instancia (start_instance)",
+        "perm.stop": "Detener una instancia (stop_instance)",
+        "perm.note_title": "Nota",
+        "perm.note_body": "No se otorgan permisos de administración (ec2:RunInstances, ec2:TerminateInstances, cambios de red o grupos de seguridad).",
+        "section.configuracion_ruvic": "Configuración en Ruvic",
+        "ruvic.intro": "Entrá a <strong>Settings → Conectores</strong>, buscá la tarjeta <strong>AWS EC2</strong> y pulsá <strong>Configurar</strong>.",
+        "table.campo": "Campo del formulario",
+        "table.valor": "Valor",
+        "field.access_key_id": "Access Key ID",
+        "field.access_key_id.value": "El Access Key ID generado en el paso anterior",
+        "field.secret_access_key": "Secret Access Key",
+        "field.secret_access_key.value": "El Secret Access Key generado (se guarda cifrado)",
+        "field.region": "Región de AWS",
+        "field.region.value": "La región donde viven las instancias (ej. us-east-1)",
+        "ruvic.test_button": "Probar conexión",
+        "ruvic.test_note": " — la plataforma listará instancias de la región configurada para confirmar credenciales y acceso.",
+        "section.verificacion": "Verificación",
+        "verif.1.label": "Test de conexión exitoso.",
+        "verif.1.body": "El botón \"Probar conexión\" debe responder con éxito listando instancias de la región.",
+        "verif.2.label": "Prueba mínima con el agente.",
+        "verif.2.body": "Abrí una conversación nueva y pedile:",
+        "verif.2.quote": "\"Listame las instancias EC2 y su estado.\"",
+        "verif.2.result": "El agente debe devolver el listado real de instancias con su estado (running/stopped).",
+        "section.solucion_problemas": "Solución de problemas",
+        "table.mensaje": "Mensaje / síntoma",
+        "table.causa": "Causa probable y solución",
+        "trouble.1.msg": "\"Credenciales inválidas o sin permiso IAM suficiente\"",
+        "trouble.1.fix": "Access Key inválida/rotada, o la policy no incluye el permiso ni el tag necesario para la operación.",
+        "trouble.2.msg": "\"La instancia no existe o no es accesible\"",
+        "trouble.2.fix": "ID de instancia mal escrito, o la instancia está en otra región distinta a la configurada.",
+        "trouble.3.msg": "\"La instancia no está en un estado válido para esta operación\"",
+        "trouble.3.fix": "Intentaste iniciar una instancia ya en ejecución, o detener una ya detenida. Consultá el estado primero con get_instance_state.",
+        "trouble.4.msg": "\"No se pudo conectar al servicio\" (timeout)",
+        "trouble.4.fix": "Región de AWS incorrecta, o problema de red temporal. Reintentá.",
+        "trouble.5.msg": "El conector aparece \"Sin configurar\" tras guardar",
+        "trouble.5.fix": "Algún campo obligatorio quedó vacío. Completá Access Key ID, Secret Access Key y Región.",
+        "section.faq_seguridad": "Preguntas frecuentes y notas de seguridad",
+        "faq.1.q": "¿El agente puede iniciar o detener cualquier instancia de mi cuenta?",
+        "faq.1.a": "Solo si la policy IAM lo permite. Se recomienda restringir start/stop a instancias con un tag específico (ej. RuvicManaged=true), así el agente nunca puede tocar instancias no marcadas explícitamente.",
+        "faq.2.q": "¿Dónde queda guardado el Secret Access Key?",
+        "faq.2.a": "Como secreto en el almacén de credenciales de la plataforma. La interfaz nunca vuelve a mostrarlo; solo indica \"definido\".",
+        "faq.3.q": "Rotación de credenciales",
+        "faq.3.a": "Recomendado cada 90 días: generá un Access Key nuevo en IAM, actualizalo en el formulario del conector, y desactivá el anterior una vez confirmado que el nuevo funciona.",
+        "faq.4.q": "¿Qué hago si las claves se comprometen?",
+        "faq.4.a": "Desactivá el Access Key inmediatamente en IAM. Revisá la actividad reciente en AWS CloudTrail (buscá acciones StartInstances/StopInstances inesperadas). Generá un Access Key nuevo y actualizalo en el formulario.",
+        "faq.warning_title": "Buenas prácticas",
+        "faq.warning_body": "Restringí start/stop por tag, nunca uses un usuario con permisos sobre toda la cuenta; y recordá que detener una instancia productiva puede causar una interrupción de servicio real.",
+      },
+      en: {
+        doc_title: "AWS EC2 Connector — Ruvic",
+        toc_title: "Contents",
+        "toc.que_es": "What it is and what it's for",
+        "toc.prerrequisitos": "Prerequisites",
+        "toc.configuracion_fabricante": "Vendor-side setup",
+        "toc.permisos": "Required permissions",
+        "toc.configuracion_ruvic": "Setup in Ruvic",
+        "toc.verificacion": "Verification",
+        "toc.solucion_problemas": "Troubleshooting",
+        "toc.faq_seguridad": "FAQ and security notes",
+        guide_title: "AWS EC2 Connector",
+        "section.que_es": "What it is and what it's for",
+        "section.que_es.body": "This connector lets the Ruvic agent query and control Amazon EC2 instances: list instances, start or stop an instance, and check its current status.",
+        "section.que_es.write_title": "This connector modifies real infrastructure",
+        "section.que_es.write_body": "start_instance and stop_instance change an instance's real state. Use it carefully on production instances.",
+        "table.operacion": "Operation",
+        "table.que_hace": "What it does",
+        "op.list_instances": "Lists instances in the configured region",
+        "op.start_instance": "Starts a stopped instance",
+        "op.stop_instance": "Stops a running instance",
+        "op.get_instance_state": "Checks an instance's current status",
+        "section.prerrequisitos": "Prerequisites",
+        "prereq.1": "At least one existing <strong>EC2 instance</strong> in your AWS account.",
+        "prereq.2": "Access to the <strong>AWS IAM console</strong> to create a dedicated user.",
+        "prereq.3": "The AWS region where the instances to manage live.",
+        "section.configuracion_fabricante": "Vendor-side setup",
+        "fabricante.intro": "You will create a <strong>dedicated IAM user</strong> for Ruvic. It's recommended to scope start/stop control by tag, so the agent can only act on instances explicitly marked for it.",
+        "step.1.label": "Create a dedicated IAM user.",
+        "step.1.body": "IAM → Users → Create user. Programmatic access only, no console access.",
+        "step.2.label": "Tag the instances the connector may control.",
+        "step.2.body": "Add the tag RuvicManaged=true to the instances where you want to allow start/stop from Ruvic.",
+        "step.3.label": "Create a least-privilege policy.",
+        "step.3.body": "Attach an inline policy that scopes control to that tag:",
+        "step.4.label": "Generate access keys.",
+        "step.4.body": "On the user's \"Security credentials\" tab, create an Access Key. Save the Access Key ID and Secret Access Key — the secret is shown only once.",
+        "section.permisos": "Required permissions",
+        "table.permiso": "Permission",
+        "table.para_que": "Why the connector needs it",
+        "perm.describe_instances": "List instances (list_instances, connection test)",
+        "perm.describe_status": "Check status (get_instance_state)",
+        "perm.start": "Start an instance (start_instance)",
+        "perm.stop": "Stop an instance (stop_instance)",
+        "perm.note_title": "Note",
+        "perm.note_body": "No administration permissions are granted (ec2:RunInstances, ec2:TerminateInstances, network or security group changes).",
+        "section.configuracion_ruvic": "Setup in Ruvic",
+        "ruvic.intro": "Go to <strong>Settings → Connectors</strong>, find the <strong>AWS EC2</strong> card and click <strong>Configure</strong>.",
+        "table.campo": "Form field",
+        "table.valor": "Value",
+        "field.access_key_id": "Access Key ID",
+        "field.access_key_id.value": "The Access Key ID generated in the previous step",
+        "field.secret_access_key": "Secret Access Key",
+        "field.secret_access_key.value": "The generated Secret Access Key (stored encrypted)",
+        "field.region": "AWS Region",
+        "field.region.value": "The region where the instances live (e.g. us-east-1)",
+        "ruvic.test_button": "Test connection",
+        "ruvic.test_note": " — the platform will list instances in the configured region to confirm credentials and access.",
+        "section.verificacion": "Verification",
+        "verif.1.label": "Successful connection test.",
+        "verif.1.body": "The \"Test connection\" button should succeed by listing region instances.",
+        "verif.2.label": "Minimal test with the agent.",
+        "verif.2.body": "Open a new conversation and ask:",
+        "verif.2.quote": "\"List my EC2 instances and their status.\"",
+        "verif.2.result": "The agent should return the real instance list with status (running/stopped).",
+        "section.solucion_problemas": "Troubleshooting",
+        "table.mensaje": "Message / symptom",
+        "table.causa": "Likely cause and fix",
+        "trouble.1.msg": "\"Invalid credentials or insufficient IAM permission\"",
+        "trouble.1.fix": "Invalid/rotated Access Key, or the policy is missing the permission or tag condition for that operation.",
+        "trouble.2.msg": "\"The instance does not exist or is not accessible\"",
+        "trouble.2.fix": "Instance ID mistyped, or the instance lives in a different region than configured.",
+        "trouble.3.msg": "\"The instance is not in a valid state for this operation\"",
+        "trouble.3.fix": "You tried starting an already-running instance, or stopping an already-stopped one. Check status first with get_instance_state.",
+        "trouble.4.msg": "\"Could not connect to the service\" (timeout)",
+        "trouble.4.fix": "Wrong AWS region, or a temporary network issue. Retry.",
+        "trouble.5.msg": "Connector shows \"Not configured\" after saving",
+        "trouble.5.fix": "A required field was left empty. Fill in Access Key ID, Secret Access Key and Region.",
+        "section.faq_seguridad": "FAQ and security notes",
+        "faq.1.q": "Can the agent start or stop any instance in my account?",
+        "faq.1.a": "Only if the IAM policy allows it. It's recommended to scope start/stop to instances with a specific tag (e.g. RuvicManaged=true), so the agent can never touch instances not explicitly marked.",
+        "faq.2.q": "Where is the Secret Access Key stored?",
+        "faq.2.a": "As a secret in the platform's credential store. The UI never shows it again; it only shows \"set\".",
+        "faq.3.q": "Credential rotation",
+        "faq.3.a": "Recommended every 90 days: generate a new Access Key in IAM, update it in the connector form, and deactivate the old one once the new one is confirmed working.",
+        "faq.4.q": "What if the keys are compromised?",
+        "faq.4.a": "Deactivate the Access Key immediately in IAM. Review recent activity in AWS CloudTrail (look for unexpected StartInstances/StopInstances actions). Generate a new Access Key and update it in the form.",
+        "faq.warning_title": "Best practices",
+        "faq.warning_body": "Scope start/stop by tag, never use a user with account-wide permissions; and remember that stopping a production instance can cause a real service disruption.",
+      },
+    };
+    (function () {
+      function applyLang(lang) {
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          const key = el.getAttribute("data-i18n");
+          if (I18N[lang] && I18N[lang][key] !== undefined) {
+            el.innerHTML = I18N[lang][key];
+          }
+        });
+      }
+      let saved = "es";
+      try {
+        const stored = localStorage.getItem("ruvic-docs-lang");
+        if (stored === "en" || stored === "es") saved = stored;
+      } catch (e) {}
+      applyLang(saved);
+    })();
+  </script>
+</body>
+</html>

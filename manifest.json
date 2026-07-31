@@ -1,0 +1,60 @@
+{
+  "id": "ec2",
+  "name": "AWS EC2",
+  "name_en": "AWS EC2",
+  "version": "1.0.0",
+  "description": "Consulta y control de instancias EC2: listar instancias, iniciar/detener una instancia y consultar su estado",
+  "description_en": "Query and control EC2 instances: list instances, start/stop an instance and check its status",
+  "icon": "icon.svg",
+  "category": "cloud",
+  "category_en": "cloud",
+  "keywords": ["aws", "ec2", "amazon", "instancia", "instance", "virtual machine", "vm", "cloud", "nube"],
+  "library": {
+    "package": "ruvic-ec2-connector",
+    "install": "pip install git+https://github.com/Dgirto/AWS-EC2.git#subdirectory=lib",
+    "import_name": "ruvic_ec2_connector"
+  },
+  "auth_modes": [
+    {
+      "id": "access_key",
+      "label": "Access Key ID y Secret Access Key",
+      "fields": [
+        {
+          "key": "access_key_id",
+          "label": "Access Key ID",
+          "type": "text",
+          "required": true,
+          "placeholder": "AKIAIOSFODNN7EXAMPLE"
+        },
+        {
+          "key": "secret_access_key",
+          "label": "Secret Access Key",
+          "type": "password",
+          "secret": true,
+          "required": true
+        },
+        {
+          "key": "region",
+          "label": "Región de AWS",
+          "type": "text",
+          "required": true,
+          "placeholder": "us-east-1"
+        },
+        {
+          "key": "connect_timeout",
+          "label": "Timeout de conexión (segundos)",
+          "type": "number",
+          "required": false,
+          "default": "10"
+        }
+      ]
+    }
+  ],
+  "env_prefix": "RUVIC_EC2_",
+  "operations": ["ec2.list_instances", "ec2.start_instance", "ec2.stop_instance", "ec2.get_instance_state"],
+  "test_connection": true,
+  "docs": {
+    "skill": "SKILL.md",
+    "permissions_note": "El usuario o rol IAM necesita ec2:DescribeInstances, ec2:DescribeInstanceStatus, ec2:StartInstances y ec2:StopInstances sobre las instancias del alcance definido (recomendado: restringir por tag o Resource ARN específico, no toda la cuenta). No se requieren permisos de administración (ec2:TerminateInstances, ec2:RunInstances, cambios de red/seguridad). Este conector SÍ modifica el estado de instancias reales (start/stop)."
+  }
+}
