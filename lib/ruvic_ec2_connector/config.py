@@ -23,7 +23,7 @@ class Ec2Config:
     connect_timeout: int = 10
 
     @classmethod
-    def from_env(cls) -> "Ec2Config":
+    def from_env(cls) -> Ec2Config:
         """Construye la configuración desde las variables RUVIC_EC2_*.
 
         Raises:
