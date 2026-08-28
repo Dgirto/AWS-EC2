@@ -37,6 +37,23 @@ _NOT_FOUND_ERROR_CODES = {"InvalidInstanceID.NotFound"}
 _MAX_LIST_LIMIT = 200
 
 
+def _require_instance_id(instance_id: Any) -> str:
+    if not isinstance(instance_id, str):
+        raise Ec2DataError(f"instance_id debe ser un string, no {type(instance_id).__name__}.")
+    instance_id = instance_id.strip()
+    if not instance_id:
+        raise Ec2DataError("instance_id no puede estar vacío.")
+    return instance_id
+
+
+def _validate_max_results(max_results: Any) -> int:
+    if isinstance(max_results, bool) or not isinstance(max_results, int):
+        raise Ec2DataError(f"max_results debe ser un entero, no {type(max_results).__name__}.")
+    if not 5 <= max_results <= _MAX_LIST_LIMIT:
+        raise Ec2DataError(f"max_results debe estar entre 5 y {_MAX_LIST_LIMIT}.")
+    return max_results
+
+
 def _wrap_client_error(exc: ClientError, not_found_message: str) -> Ec2ConnectorError:
     """Traduce un error de la API de AWS a una excepción propia, sin dejar
     escapar nunca el tipo crudo del SDK."""
@@ -107,7 +124,7 @@ class Ec2Client:
         Raises:
             Ec2AuthError / Ec2NetworkError / Ec2DataError.
         """
-        self.list_instances(max_results=1)
+        self.list_instances(max_results=5)
         self._logger.info("Ping exitoso a EC2 en %s", self.config.region)
         return True
 
@@ -130,7 +147,7 @@ class Ec2Client:
             >>> client.list_instances()
             [{'instance_id': 'i-0abcd1234', 'state': 'running', ...}]
         """
-        max_results = max(5, min(int(max_results), _MAX_LIST_LIMIT))
+        max_results = _validate_max_results(max_results)
         client = self._get_client()
         try:
             response = client.describe_instances(MaxResults=max_results)
@@ -183,9 +200,7 @@ class Ec2Client:
             >>> client.start_instance("i-0abcd1234")
             'pending'
         """
-        instance_id = (instance_id or "").strip()
-        if not instance_id:
-            raise Ec2DataError("instance_id no puede estar vacío.")
+        instance_id = _require_instance_id(instance_id)
         client = self._get_client()
         try:
             response = client.start_instances(InstanceIds=[instance_id])
@@ -216,9 +231,7 @@ class Ec2Client:
             >>> client.stop_instance("i-0abcd1234")
             'stopping'
         """
-        instance_id = (instance_id or "").strip()
-        if not instance_id:
-            raise Ec2DataError("instance_id no puede estar vacío.")
+        instance_id = _require_instance_id(instance_id)
         client = self._get_client()
         try:
             response = client.stop_instances(InstanceIds=[instance_id])
@@ -249,9 +262,7 @@ class Ec2Client:
             >>> client.get_instance_state("i-0abcd1234")
             {'instance_id': 'i-0abcd1234', 'state': 'running', 'state_reason': None}
         """
-        instance_id = (instance_id or "").strip()
-        if not instance_id:
-            raise Ec2DataError("instance_id no puede estar vacío.")
+        instance_id = _require_instance_id(instance_id)
         client = self._get_client()
         try:
             response = client.describe_instance_status(
